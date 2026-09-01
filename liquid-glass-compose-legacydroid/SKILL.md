@@ -431,6 +431,30 @@ fun LiquidBottomTab(
 )
 ```
 
+### FakeGlass (battery saver / low-end)
+
+Lightweight alternative to real glass. No backdrop system, no blur, no lens, no vibrancy — just Canvas draws. Works on all API levels with minimal GPU cost.
+
+```kotlin
+@Composable
+fun FakeGlass(
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedRectangle(24.dp),
+    surfaceColor: Color = Color.White.copy(alpha = 0.12f),
+    highlightColor: Color = Color.White.copy(alpha = 0.38f),
+    highlightWidth: Dp = 0.5f.dp,
+    cornerRadius: Dp = 24.dp,
+    content: @Composable BoxScope.() -> Unit
+)
+```
+
+How it works:
+1. `Modifier.clip(shape)` — clips content to shape boundary
+2. `drawBehind` → `drawRect(surfaceColor)` — single translucent fill pass
+3. `drawIntoCanvas` → `canvas.nativeCanvas.drawRoundRect(...)` — thin stroke border
+
+No `LayerBackdrop`, no `GraphicsLayer`, no `RenderEffect`, no AGSL. `shape` clips content, `cornerRadius` controls the highlight stroke independently — keep them in sync.
+
 ---
 
 ## Common patterns from the demo app
@@ -547,6 +571,25 @@ effects = {
 ```
 
 Requires API 33+. Check `isRuntimeShaderSupported()` before use.
+
+### FakeGlass — battery saver surface
+
+No backdrop needed. Just a translucent fill + thin white border:
+
+```kotlin
+FakeGlass(
+    modifier = Modifier.width(280.dp).height(80.dp),
+    shape = Capsule(),
+    surfaceColor = Color.White.copy(alpha = 0.12f),
+    highlightColor = Color.White.copy(alpha = 0.38f),
+    highlightWidth = 0.5f.dp,
+    cornerRadius = 60f.dp  // must match shape geometry
+) {
+    Text("Content here")
+}
+```
+
+Use for: battery saver mode, low-end device fallback, any surface that needs a glass look without GPU cost. The `shape` param clips content; `cornerRadius` draws the highlight stroke — keep them consistent.
 
 ---
 
