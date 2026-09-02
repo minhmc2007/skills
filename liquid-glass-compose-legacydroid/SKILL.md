@@ -19,6 +19,104 @@ If you're working outside an AOSP tree or using Gradle, use the standard `liquid
 
 ---
 
+## System-wide Liquid Glass toggle
+
+LegacyDroid provides a **system-wide on/off toggle** for liquid glass effects. Apps that implement liquid glass should respect this toggle.
+
+### Setting key
+
+```
+Settings.Global("legacydroid_liquid_glass")
+```
+
+- `1` = liquid glass ON (use real `drawBackdrop` with blur/lens/vibrancy)
+- `0` = liquid glass OFF (use `FakeGlass()` lightweight Canvas fallback)
+
+### Reading the toggle
+
+```kotlin
+// Kotlin
+val isEnabled = Settings.Global.getInt(
+    context.contentResolver,
+    "legacydroid_liquid_glass",
+    0  // default OFF
+) == 1
+```
+
+```java
+// Java
+boolean isEnabled = Settings.Global.getInt(
+    context.getContentResolver(),
+    "legacydroid_liquid_glass",
+    0
+) == 1;
+```
+
+### Pattern for apps
+
+```kotlin
+@Composable
+fun GlassSurface(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val isEnabled by remember {
+        mutableStateOf(
+            Settings.Global.getInt(
+                context.contentResolver,
+                "legacydroid_liquid_glass",
+                0
+            ) == 1
+        )
+    }
+
+    if (isEnabled) {
+        // Real liquid glass backdrop
+        val backdrop = rememberLayerBackdrop()
+        Box(modifier = modifier.drawBackdrop(
+            backdrop = backdrop,
+            shape = { RoundedRectangle(24.dp) },
+            effects = {
+                blur(8f.dp.toPx())
+                vibrancy()
+                lens(12f.dp.toPx(), 24f.dp.toPx())
+            }
+        ))
+    } else {
+        // FakeGlass fallback — no GPU cost
+        FakeGlass(
+            modifier = modifier,
+            shape = RoundedRectangle(24.dp),
+            cornerRadius = 24.dp
+        ) {
+            Box(modifier = Modifier.fillMaxSize())
+        }
+    }
+}
+```
+
+### Listening for changes
+
+Apps can listen for toggle changes via a `ContentObserver`:
+
+```kotlin
+val uri = Settings.Global.getUriFor("legacydroid_liquid_glass")
+val observer = object : ContentObserver(handler) {
+    override fun onChange(selfChange: Boolean) {
+        // Re-read the setting and update UI
+    }
+}
+contentResolver.registerContentObserver(uri, false, observer)
+```
+
+### Settings app location
+
+```
+Settings > LegacyDroid > Appearance > Liquid Glass (toggle)
+```
+
+The toggle is implemented as a `SwitchPreferenceCompat` in `legacydroid_appearance.xml` and binds via `Settings.Global.putInt/getInt` in `LegacydroidAppearanceFragment.java`.
+
+---
+
 ## Module dependency graph
 
 ```
